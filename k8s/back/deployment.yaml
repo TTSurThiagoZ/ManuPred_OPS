@@ -37,6 +37,13 @@ spec:
         envFrom:
         - configMapRef:
             name: backend-config
+        env:
+          - name: FIREBASE_CONFIG_JSON
+            valueFrom:
+              secretKeyRef:
+                name: firebase-secret
+                key: service-account.json
+
         resources:
           requests:
             cpu: "100m"

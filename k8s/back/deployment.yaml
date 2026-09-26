@@ -1,0 +1,84 @@
+# ========================================================
+# 1. CONFIGMAP (Variáveis de Ambiente do Backend)
+# ========================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  DB_HOST: "host.minikube.internal" # Conecta ao banco de dados no host local
+  SPRING_PROFILES_ACTIVE: "prod"
+---
+# ========================================================
+# 2. DEPLOYMENT DO BACKEND
+# ========================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 2 # Replicação gerenciada pelo Deployment (ReplicaSet)
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend-container
+        image: thiagofiec/manupred_be:latest # Substitua pelo seu usuário no Docker Hub
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080 # Porta padrão da aplicação Spring Boot
+        envFrom:
+        - configMapRef:
+            name: backend-config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+# ========================================================
+# 3. SERVICE DO BACKEND (ClusterIP para comunicação interna)
+# ========================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: ClusterIP # Exposição apenas interna no cluster K8s
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+# ========================================================
+# 4. HPA DO BACKEND (Autoescala Horizontal)
+# ========================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

@@ -50,7 +50,7 @@ resource "null_resource" "expose_service" {
       kubectl wait --for=condition=Ready pod -l app=backend --timeout=180s
 
       echo "🚀 Pods prontos! Iniciando o port-forward em background..."
-      nohup kubectl port-forward service/backend-service 8080:8080 > /dev/null 2>&1 &
+      nohup kubectl port-forward service/backend-service --address 0.0.0.0 8080:8080 > /dev/null 2>&1 &
     EOT
     interpreter = ["bash", "-c"]
   }
@@ -58,7 +58,7 @@ resource "null_resource" "expose_service" {
   # Executado no 'terraform destroy'
   provisioner "local-exec" {
     when        = destroy
-    command     = "pkill -f 'kubectl port-forward service/backend-service 8080:8080' || true"
+    command     = "pkill -f 'kubectl port-forward service/backend-service --address 0.0.0.0 8080:8080' || true"
     interpreter = ["bash", "-c"]
   }
 }

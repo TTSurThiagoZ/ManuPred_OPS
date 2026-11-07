@@ -5,6 +5,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: frontend-config
+  labels:
+    app: frontend
 data:
   REACT_APP_API_URL: "http://localhost:8080" # URL para comunicar com o Backend
 ---
@@ -18,7 +20,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 2 # Define a quantidade inicial de Pods (ReplicaSet gerenciado)
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -29,13 +31,39 @@ spec:
     spec:
       containers:
       - name: frontend-container
-        image: thiagofiec/kipperfe:latest # Substitua pelo seu usuário no Docker Hub
+        image: thiagofiec/kipperfe:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80 # Porta exposta pelo servidor Web (ex: Nginx)
         envFrom:
         - configMapRef:
             name: frontend-config
+
+        # Probes de Saúde para verificar a prontidão do Nginx/Servidor Web
+        startupProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 3
+          failureThreshold: 10
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+
         resources:
           requests:
             cpu: "50m"
@@ -51,6 +79,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  labels:
+    app: frontend
 spec:
   type: NodePort
   selector:
@@ -68,6 +98,8 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: frontend-hpa
+  labels:
+    app: frontend
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

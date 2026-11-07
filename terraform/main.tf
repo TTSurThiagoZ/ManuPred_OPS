@@ -1,4 +1,6 @@
-# Provisionamento do Cluster Minikube com as novas configurações
+# ========================================================
+# 1. CLUSTER MINIKUBE
+# ========================================================
 resource "minikube_cluster" "custom" {
   cluster_name       = var.cluster_name
   driver             = var.driver
@@ -12,19 +14,17 @@ resource "minikube_cluster" "custom" {
   kubernetes_version = var.kubernetes_version
 }
 
-# Execução automática do script K8s após a criação do cluster ou quando houver alterações
+# ========================================================
+# 2. BACKEND: DEPLOY E EXPOSIÇÃO DE PORTAS
+# ========================================================
+
+# 2.1. Execução do Script de Deploy do Backend
 resource "null_resource" "apply_k8s" {
   depends_on = [minikube_cluster.custom]
 
   triggers = {
-    # Reexecuta o deploy sempre que o script shell for alterado
-    script_hash = filemd5("${path.module}/scripts/apply-k8s.sh")
-
-    # Reexecuta o deploy sempre que o manifesto Kubernetes for alterado
+    script_hash     = filemd5("${path.module}/scripts/apply-k8s.sh")
     deployment_hash = filemd5("${path.module}/scripts/k8s/back/deployment.yaml")
-
-    # (Opcional) Descomente a linha abaixo para forçar o deploy em TODO 'terraform apply':
-    # always_run = timestamp()
   }
 
   provisioner "local-exec" {
@@ -33,8 +33,7 @@ resource "null_resource" "apply_k8s" {
   }
 }
 
-# Exposição do Serviço e Redirecionamento de Porta (Port-Forward)
-
+# 2.2. Exposição da Porta do Backend (8080:8080)
 resource "null_resource" "expose_service" {
   depends_on = [null_resource.apply_k8s]
 
@@ -42,23 +41,74 @@ resource "null_resource" "expose_service" {
     deployment_hash = filemd5("${path.module}/scripts/k8s/back/deployment.yaml")
   }
 
-  # Executado no 'terraform apply'
+  # Executado no 'terraform apply': Aguarda os pods e expõe em background
   provisioner "local-exec" {
     command     = <<EOT
-      echo "⏳ Aguardando o Deployment e os Pods ficarem 100% Ready..."
+      echo "⏳ Aguardando o Deployment do Backend ficar 100% Ready..."
       kubectl rollout status deployment/backend-deployment --timeout=180s
       kubectl wait --for=condition=Ready pod -l app=backend --timeout=180s
 
-      echo "🚀 Pods prontos! Iniciando o port-forward em background..."
+      echo "🚀 Backend pronto! Iniciando o port-forward (8080:8080)..."
       nohup kubectl port-forward service/backend-service --address 0.0.0.0 8080:8080 > /dev/null 2>&1 &
     EOT
     interpreter = ["bash", "-c"]
   }
 
-  # Executado no 'terraform destroy'
+  # Executado no 'terraform destroy': Encerra o processo de background
   provisioner "local-exec" {
     when        = destroy
-    command     = "pkill -f 'kubectl port-forward service/backend-service --address 0.0.0.0 8080:8080' || true"
+    command     = "pkill -f 'kubectl port-forward service/backend-service' || true"
+    interpreter = ["bash", "-c"]
+  }
+}
+
+# ========================================================
+# 3. FRONTEND: DEPLOY E EXPOSIÇÃO DE PORTAS
+# ========================================================
+
+# 3.1. Execução do Script de Deploy do Frontend
+resource "null_resource" "apply_k8s_front" {
+  depends_on = [
+    minikube_cluster.custom,
+    null_resource.apply_k8s # Garante que o backend suba antes ou junto
+  ]
+
+  triggers = {
+    script_hash     = filemd5("${path.module}/scripts/apply-k8s-front.sh")
+    deployment_hash = filemd5("${path.module}/scripts/k8s/front/deployment.yaml")
+  }
+
+  provisioner "local-exec" {
+    command     = "bash ${path.module}/scripts/apply-k8s-front.sh"
+    interpreter = ["bash", "-c"]
+  }
+}
+
+# 3.2. Exposição da Porta do Frontend (3000:80)
+resource "null_resource" "expose_frontend_service" {
+  depends_on = [null_resource.apply_k8s_front]
+
+  triggers = {
+    deployment_hash = filemd5("${path.module}/scripts/k8s/front/deployment.yaml")
+  }
+
+  # Executado no 'terraform apply': Aguarda os pods e expõe em background
+  provisioner "local-exec" {
+    command     = <<EOT
+      echo "⏳ Aguardando o Deployment do Frontend ficar 100% Ready..."
+      kubectl rollout status deployment/frontend-deployment --timeout=180s
+      kubectl wait --for=condition=Ready pod -l app=frontend --timeout=180s
+
+      echo "🌐 Frontend pronto! Iniciando o port-forward (3000:80)..."
+      nohup kubectl port-forward service/frontend-service --address 0.0.0.0 3000:80 > /dev/null 2>&1 &
+    EOT
+    interpreter = ["bash", "-c"]
+  }
+
+  # Executado no 'terraform destroy': Encerra o processo de background
+  provisioner "local-exec" {
+    when        = destroy
+    command     = "pkill -f 'kubectl port-forward service/frontend-service' || true"
     interpreter = ["bash", "-c"]
   }
 }

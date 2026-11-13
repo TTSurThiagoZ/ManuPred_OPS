@@ -1,0 +1,22 @@
+# Copie para terraform.tfvars e ajuste. O terraform.tfvars é ignorado pelo git.
+
+aws_region   = "us-east-1"
+cluster_name = "kipper-eks"
+
+node_instance_types = ["t3.medium"]
+node_desired_size   = 2
+
+backend_image  = "thiagofiec/manupred_be:latest"
+frontend_image = "thiagofiec/kipperfe:latest"
+
+# Coloque o serviceAccountKey.json do Firebase nesta pasta (terraform-eks/)
+firebase_credentials_file = "serviceAccountKey.json"
+
+# Opcionais
+# google_client_id     = ""
+# google_client_secret = ""
+# jwt_secret           = ""
+# frontend_oauth2_redirect_uri = "http://<url-do-frontend>/oauth2/redirect"
+
+# Windows (Git Bash). No Linux/Mac use "/bin/bash"
+# bash_path = "C:/Program Files/Git/bin/bash.exe"

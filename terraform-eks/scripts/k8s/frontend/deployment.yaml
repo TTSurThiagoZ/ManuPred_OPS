@@ -1,0 +1,52 @@
+# Obs.: as variáveis REACT_APP_* (Firebase e REACT_APP_API_URL) são embutidas na
+# imagem no 'docker build' — um ConfigMap em runtime não tem efeito no React.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend-container
+          image: ${FRONTEND_IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  # NodePort fixo: o NLB interno do API Gateway encaminha para esta porta nos nós.
+  # O frontend não tem mais Load Balancer público; a entrada é só pelo API Gateway.
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: ${FRONTEND_NODE_PORT}

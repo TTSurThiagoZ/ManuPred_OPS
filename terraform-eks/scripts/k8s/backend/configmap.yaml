@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  APP_ENV: "production"
+  BACKEND_URL: "http://backend-service:8080"
+  # Antes: host.minikube.internal:3310 — agora o endpoint do RDS
+  DB_HOST: "${DB_HOST}"
+  DB_PORT: "${DB_PORT}"
+  FRONTEND_OAUTH2_REDIRECT_URI: "${FRONTEND_OAUTH2_REDIRECT_URI}"
+  # Atrás do API Gateway (prefixo /kipper, https): o Spring usa os cabeçalhos
+  # enviados pela integração para montar URLs públicas corretas (Swagger etc.)
+  SERVER_FORWARD_HEADERS_STRATEGY: "framework"
+  SERVER_TOMCAT_REMOTEIP_PROTOCOL_HEADER: "X-Kipper-Proto"

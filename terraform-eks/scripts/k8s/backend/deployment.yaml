@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+      annotations:
+        # Muda quando ConfigMap/Secret mudam -> força o restart dos pods
+        checksum/config: "${CONFIG_HASH}"
+    spec:
+      containers:
+        - name: backend-container
+          image: ${BACKEND_IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: firebase-secret
+            # Google OAuth / JWT — só existe se informado no terraform.tfvars
+            - secretRef:
+                name: backend-optional-secret
+                optional: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"
+          # Probes TCP na 8080: na imagem atual o Actuator fica na 8080 atrás do
+          # Spring Security (HTTP 401), e a porta 9090 de management não existe.
+          # O Tomcat só abre a 8080 depois que a aplicação subiu e conectou no banco.
+          # Spring Boot demora para subir: até 5 min de tolerância
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  # NodePort fixo: o NLB interno do API Gateway encaminha para esta porta nos nós.
+  # O backend não tem mais Load Balancer público; a entrada é só pelo API Gateway.
+  type: NodePort
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: ${BACKEND_NODE_PORT}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

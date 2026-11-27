@@ -175,13 +175,13 @@ variable "firebase_credentials_file" {
 variable "frontend_oauth2_redirect_uri" {
   type        = string
   description = "URL de redirect do OAuth2 após login. Vazio = <URL do frontend no API Gateway>/oauth2/redirect"
-  default     = ""
+  default     = "https://l7qnejkr6i.execute-api.us-east-1.amazonaws.com/kipper/oauth2/redirect"
 }
 
 variable "google_client_id" {
   type        = string
   description = "Client ID do OAuth2 Google (opcional)"
-  default     = ""
+  default     = "355480871385-8q4850tqh2shrf6qkf5li497lgf9m42m.apps.googleusercontent.com"
   sensitive   = true
 }
 

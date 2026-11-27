@@ -8,13 +8,12 @@
 source "$(dirname "$0")/common.sh"
 
 : "${BACKEND_IMAGE:?BACKEND_IMAGE não definido}"
-: "${DB_HOST:?DB_HOST não definido}"
 : "${DB_PORT:=3306}"
 : "${SECRETS_FILE:=.deploy-secrets.env}"
 : "${FIREBASE_CREDENTIALS_FILE:=serviceAccountKey.json}"
 : "${BACKEND_NODE_PORT:=30808}"
 : "${API_GATEWAY_URL:?API_GATEWAY_URL não definido}"
-export BACKEND_IMAGE DB_HOST DB_PORT BACKEND_NODE_PORT
+export BACKEND_IMAGE DB_PORT BACKEND_NODE_PORT
 
 setup_kubeconfig
 
@@ -39,12 +38,12 @@ set +a
 # --------------------------------------------------
 : "${FRONTEND_OAUTH2_REDIRECT_URI:?FRONTEND_OAUTH2_REDIRECT_URI não definido}"
 export FRONTEND_OAUTH2_REDIRECT_URI
-echo "📌 Banco: ${DB_HOST}:${DB_PORT} | OAuth2 redirect: ${FRONTEND_OAUTH2_REDIRECT_URI}"
+#echo "📌 Banco: ${DB_HOST}:${DB_PORT} | OAuth2 redirect: ${FRONTEND_OAUTH2_REDIRECT_URI}"
 
 # --------------------------------------------------
 # RENDERIZA OS MANIFESTOS
 # --------------------------------------------------
-CONFIG_YAML=$(envsubst '${DB_HOST} ${DB_PORT} ${FRONTEND_OAUTH2_REDIRECT_URI}' < scripts/k8s/backend/configmap.yaml)
+CONFIG_YAML=$(envsubst '${FRONTEND_OAUTH2_REDIRECT_URI}' < scripts/k8s/backend/configmap.yaml)
 SECRET_YAML=$(envsubst '${FIREBASE_CREDENTIALS_BASE64} ${DB_USER_B64} ${DB_PASSWORD_B64}' < scripts/k8s/backend/secret.yaml)
 
 # Secret opcional: só inclui as chaves que foram informadas

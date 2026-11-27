@@ -40,16 +40,12 @@ output "backend_api_url" {
   value       = local.backend_public_url
 }
 
+output "backend_swagger_url" {
+  description = "Swagger do backend (API Gateway)"
+  value       = "${local.backend_public_url}/swagger-ui/index.html"
+}
+
 # --------------------------------------------------
 # BANCO DE DADOS
 # --------------------------------------------------
-output "rds_endpoint" {
-  description = "Endpoint do RDS MySQL (acessível apenas de dentro da VPC)"
-  value       = aws_db_instance.mysql.address
-}
 
-output "db_password" {
-  description = "Senha do MySQL (ver com: terraform output -raw db_password)"
-  value       = random_password.db.result
-  sensitive   = true
-}

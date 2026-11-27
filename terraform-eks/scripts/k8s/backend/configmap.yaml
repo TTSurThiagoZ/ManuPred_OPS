@@ -6,10 +6,11 @@ data:
   APP_ENV: "production"
   BACKEND_URL: "http://backend-service:8080"
   # Antes: host.minikube.internal:3310 — agora o endpoint do RDS
-  DB_HOST: "${DB_HOST}"
-  DB_PORT: "${DB_PORT}"
+
   FRONTEND_OAUTH2_REDIRECT_URI: "${FRONTEND_OAUTH2_REDIRECT_URI}"
   # Atrás do API Gateway (prefixo /kipper, https): o Spring usa os cabeçalhos
   # enviados pela integração para montar URLs públicas corretas (Swagger etc.)
   SERVER_FORWARD_HEADERS_STRATEGY: "framework"
   SERVER_TOMCAT_REMOTEIP_PROTOCOL_HEADER: "X-Kipper-Proto"
+  MONGODB_URI: mongodb+srv://fillipesilva:Fiec2026@tigrinhos-fiec.xkgx0de.mongodb.net/kipper_db
+  FRONTEND_REDIRECT_URI: https://l7qnejkr6i.execute-api.us-east-1.amazonaws.com/kipper/oauth2/redirect

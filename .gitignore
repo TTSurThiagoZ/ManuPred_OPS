@@ -8,6 +8,6 @@ terraform-eks/.kube
 **/*.tfstate.backup
 **/*.json
 **/*.out
-
+**/*.tfvars
 **/*.env
 terraform-eks/.terraform/providers

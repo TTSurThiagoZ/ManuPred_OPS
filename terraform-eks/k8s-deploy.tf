@@ -25,8 +25,6 @@ resource "local_sensitive_file" "deploy_secrets" {
   filename        = "${path.module}/.deploy-secrets.env"
   file_permission = "0600"
   content         = <<-EOT
-    DB_USER_B64=${base64encode(var.db_username)}
-    DB_PASSWORD_B64=${base64encode(random_password.db.result)}
     GOOGLE_CLIENT_ID_B64=${var.google_client_id != "" ? base64encode(var.google_client_id) : ""}
     GOOGLE_CLIENT_SECRET_B64=${var.google_client_secret != "" ? base64encode(var.google_client_secret) : ""}
     JWT_SECRET_B64=${var.jwt_secret != "" ? base64encode(var.jwt_secret) : ""}
@@ -106,7 +104,6 @@ resource "null_resource" "k8s_backend_deploy" {
     secret          = filemd5("${path.module}/scripts/k8s/backend/secret.yaml")
     manifest        = filemd5("${path.module}/scripts/k8s/backend/deployment.yaml")
     image           = var.backend_image
-    db_host         = aws_db_instance.mysql.address
     secrets_hash    = local_sensitive_file.deploy_secrets.content_sha256
     firebase_hash   = local.firebase_file_hash
     oauth2_redirect = local.frontend_oauth2_redirect_uri
@@ -118,8 +115,6 @@ resource "null_resource" "k8s_backend_deploy" {
   depends_on = [
     null_resource.k8s_frontend_deploy,
     helm_release.metrics_server,
-    aws_vpc_security_group_ingress_rule.rds_from_nodes,
-    aws_vpc_security_group_ingress_rule.rds_from_cluster,
     aws_apigatewayv2_route.backend_kipper,
     aws_apigatewayv2_route.backend_proxy,
   ]
@@ -129,8 +124,7 @@ resource "null_resource" "k8s_backend_deploy" {
     working_dir = path.module
     environment = merge(local.k8s_env, {
       BACKEND_IMAGE                = var.backend_image
-      DB_HOST                      = aws_db_instance.mysql.address
-      DB_PORT                      = tostring(aws_db_instance.mysql.port)
+  
       SECRETS_FILE                 = basename(local_sensitive_file.deploy_secrets.filename)
       FIREBASE_CREDENTIALS_FILE    = var.firebase_credentials_file
       FRONTEND_OAUTH2_REDIRECT_URI = local.frontend_oauth2_redirect_uri
